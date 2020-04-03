@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+  # Configuration for Hub+Proxy
+  jupyterhub:
+    env_file: .env
+    build: jupyterhub                # Build the container from this folder.
+    container_name: jupyterhub_hub   # The service will use this container name.
+    volumes:                         # Give access to Docker socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jupyterhub_data:/srv/jupyterhub  
+    environment:                     # Env variables passed to the Hub process.
+      DOCKER_JUPYTER_IMAGE: jupyterlab_img
+      DOCKER_NETWORK_NAME: ${COMPOSE_PROJECT_NAME}_default
+      HUB_IP: jupyterhub_hub
+    labels:                          # Traefik configuration. Host outside access...
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:168.63.106.201"
+    restart: on-failure
+  # Configuration for reverse proxy
+  reverse-proxy:
+        env_file: .env  
+        image: traefik:v1.7.16
+        ports:
+                - "80:80"
+                - "443:443"
+                - "8080:8080"
+        volumes:
+                - ./reverse-proxy/traefik.toml:/etc/traefik/traefik.toml
+                - /var/run/docker.sock:/var/run/docker.sock
+                - /etc/certs/ssl:/etc/certs/ssl
+  # Configuration for the single-user servers
+  jupyterlab:
+        env_file: .env  
+        build: jupyterlab
+        image: jupyterlab_img
+        network_mode: none
+        command: echo      
+
+volumes:
+        jupyterhub_data:
+
+networks:
+        default:
+                driver: bridge
+
+
+
+
+
+
+#networks:
+#
+#       default:
+#               external:
+#                 name: ${COMPOSE_PROJECT_NAME}_default
+#                 ip: jupyterhub_hub
+        #jupyter:
+               #driver: bridge
+          #  internal:
+
